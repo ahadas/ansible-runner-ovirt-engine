@@ -16,14 +16,18 @@
 #
 
 import os
+import logging
+import uuid
+
 import requests
 import requests_unixsocket
-import logging
 
 logger = logging.getLogger('ansible-runner')
 
 def make_ovirt_event(ansible_event, correlation_id):
+    print(ansible_event)
     event_data = ansible_event["event_data"]
+    play_uuid = event_data.get("play_uuid", str(uuid.uuid4()))
     ovirt_event = {
         "code": 0, # FIXME,
         # "comment"
@@ -35,7 +39,7 @@ def make_ovirt_event(ansible_event, correlation_id):
         "id": ansible_event["uuid"],
         "index": ansible_event["counter"],
         "name": event_data["playbook"],
-        "origin": "%s-%s" % (event_data["playbook"], event_data["play_uuid"]),
+        "origin": "%s-%s" % (event_data["playbook"], play_uuid),
         "severity": "normal", # FIXME
         # "time"
     }
@@ -56,19 +60,22 @@ def send_request(url, data, correlation_id, headers={}, urlpath=None):
     logger.debug("Sending event {}".format(event_data))
     return session.post(url_actual, headers=headers, json=(event_data))
 
+def get_variable(runner_config, name):
+    value = runner_config.settings.get(name, None)
+    return os.getenv(name.upper(), value)
 
 def get_configuration(runner_config):
-    runner_url = runner_config.settings.get("runner_http_url", None)
-    runner_url = os.getenv("RUNNER_HTTP_URL", runner_url)
-    runner_path = runner_config.settings.get("runner_http_path", None)
-    runner_path = os.getenv("RUNNER_HTTP_PATH", runner_path)
     runner_headers = runner_config.settings.get("runner_http_headers", None)
-    return dict(runner_url=runner_url,
-                runner_path=runner_path,
-                runner_headers=runner_headers)
+    return {
+        "runner_headers": runner_headers,
+        "runner_url": get_variable(runner_config, "runner_url"),
+        "runner_path": get_variable(runner_config, "runner_path"),
+        "correlation_id": get_variable(runner_config, "correlation_id"),
+        "host_id": get_variable(runner_config, "host_id"),
+    }
 
 
-def status_handler(runner_config, data):
+def event_handler(runner_config, data):
     plugin_config = get_configuration(runner_config)
     if plugin_config['runner_url'] is not None:
         status = send_request(plugin_config['runner_url'],
@@ -81,5 +88,6 @@ def status_handler(runner_config, data):
         logger.info("HTTP Plugin Skipped")
 
 
-def event_handler(runner_config, data):
-    status_handler(runner_config, data)
+def status_handler(runner_config, data):
+    # we don't care atm
+    print(data)
