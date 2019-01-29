@@ -1,3 +1,4 @@
 .pytest_cache/
 ansible_runner_ovirt_engine/__pycache__/
 tests/__pycache__/
+playbooks/.ansible
