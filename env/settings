@@ -1,0 +1,8 @@
+---
+idle_timeout: 600
+job_timeout: 3600
+pexpect_timeout: 10
+runner_http_url: "CHANGEME"
+runner_http_headers:
+  Authorization: Bearer XYZ
+correlation_id: "RHVFTW"
